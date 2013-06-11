@@ -1,0 +1,41 @@
+<html>
+
+  <head>
+    <title>Fulcrum Gauge Demo</title>
+
+    <link rel="stylesheet" type="text/css" href="css/demo.css" />
+  </head>
+  
+  <body>
+    <h2>Fulcrum Gauge Demo</h2>
+
+    <div id="demoContainerA" class="gauge-container">
+    </div>
+
+    <div id="demoContainerB" class="gauge-container">
+    </div>
+    
+    <script src="js/lib/jquery-1.10.1.js" type="text/javascript"></script>
+    <script src="js/lib/raphael-2.1.0.js" type="text/javascript"></script>
+    <script src="js/ci/gauge-0.0.1.js"    type="text/javascript"></script>
+
+    <script type="text/javascript">
+
+      $( function() {
+
+        var gaugeOpts = {
+          numerator   : 15.3,
+          denominator : 31.6,
+          animate     : true,
+          tickMarks   : [ { position: 20.5, label: "As of today" },
+                          { position: 23.7, label: "Goal by friday" } ]
+        }
+
+        $( '.gauge-container' ).gauge( gaugeOpts );
+
+      } );
+
+    </script>
+  </body>
+
+</html>
