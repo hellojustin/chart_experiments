@@ -1,86 +1,19 @@
-( function( $, R ) {
+( function( $, R, Eskimo ) {
 
   $.fn.gauge = function( options ) {
 
-    function degreesToRadians( degrees ) {
-      return degrees * Math.PI/180;
-    }
 
-    function calculateCircleInfo( canvas, opts ) {
-      var center   = { x : canvas.width/2, y : canvas.height/2 },
-          radius   = Math.min( center.x, center.y ) 
-                   - Math.max( opts.padding.horizontal,
-                               opts.padding.vertical    ),
-          bottom   = { x : center.x, y : center.y + radius },
-          labelGap = 360 - opts.track.degrees;
 
-      return { 
-        center   : center,
-        radius   : radius,
-        bottom   : bottom,
-        labelGap : labelGap
-      }
-    }
+    function drawTrack( canvas, grid, opts ) {
+      var gap      = Eskimo.getRadians( ( 360 - opts.track.degrees ) / 2 );
+          largeArc = Math.floor( gap / Math.PI ),
+          start    = grid.point( 'trackStart', gap ),
+          end      = grid.point( 'trackEnd', gap * -1 ),
+          p        = [],
+          path     = canvas.path();
 
-    function calculateHypotenuse( sideA, sideB ) {
-      return Math.sqrt( Math.pow( sideA, 2 ) + Math.pow( sideB, 2 ) );
-    }
-
-    function calculateFullAngle( quadrant, sideA, sideB ) {
-      var quadrantAngle      = quadrant * Math.PI / 2,
-          offsetFromQuadrant = ( quadrant % 2 == 0 ) 
-                                 ? Math.atan( sideA / sideB )  //in quadrants 0 & 2, sideA is opposite and sideB is adjacent
-                                 : Math.atan( sideB / sideA ); //in quadrants 1 & 3, sideB is opposite and sideA is adjacent
-
-      return quadrantAngle + offsetFromQuadrant;
-    }
-
-    function angularOffset( point, offsetAngle, center ) {
-      var sideA       = Math.abs( point.x - center.x ), 
-          sideB       = Math.abs( point.y - center.y ),
-          radius      = calculateHypotenuse( sideA, sideB ),
-          quadrant    = ( point.x >= center.x ) 
-                          ? ( point.y < center.y ) ? 0 : 1
-                          : ( point.y > center.y ) ? 2 : 3,
-          startAngle  = calculateFullAngle( quadrant, sideA, sideB ),
-          newAngle    = startAngle + offsetAngle,
-          newQuadrant = Math.floor( newAngle / (Math.PI/2) ) % 4,
-          quadAngle   = newAngle - ( newQuadrant * (Math.PI/2) ),
-          xDist       = 0.0,
-          yDist       = 0.0;
-          
-          if ( newQuadrant % 2 == 0 ) {
-            xDist = Math.cos( quadAngle ) * radius;
-            yDist = Math.sin( quadAngle ) * radius;
-          } else {
-            xDist = Math.sin( quadAngle ) * radius;
-            yDist = Math.cos( quadAngle ) * radius;
-          }
-
-          if ( newQuadrant == 2 || newQuadrant == 3 ) { xDist = xDist * -1 }
-          if ( newQuadrant == 0 || newQuadrant == 3 ) { yDist = yDist * -1 }
-
-      return { 
-        x : center.x + xDist, 
-        y : center.y + yDist
-      }
-    }
-    
-    function drawTrack( canvas, element, opts ) {
-      var circle     = calculateCircleInfo( canvas, opts ),
-          startPoint = angularOffset( 
-                         circle.bottom, 
-                         degreesToRadians( circle.labelGap/2 ), 
-                         circle.center ),
-          endPoint   = angularOffset( 
-                         startPoint, 
-                         degreesToRadians( opts.track.degrees ), 
-                         circle.center ),
-          p          = [],
-          path       = canvas.path();
-
-      p = p.concat( [ "M", startPoint.x, startPoint.y ] );
-      p = p.concat( [ "A", circle.radius, circle.radius, 0, 1, 1, endPoint.x, endPoint.y ] ); 
+      p = p.concat( [ "M", start.x, start.y ] );
+      p = p.concat( [ "A", grid.radius, grid.radius, 0, 1, 1, end.x, end.y ] ); 
 
       return path.attr( { 
         'path'         : p,
@@ -89,24 +22,20 @@
       } );
     }
 
-    function drawData( canvas, element, opts ) {
-      var circle      = calculateCircleInfo( canvas, opts ),
-          dataDegrees = opts.data.numerator 
-                      / opts.data.denominator 
-                      * opts.track.degrees,
-          startPoint  = angularOffset(
-                          circle.bottom,
-                          degreesToRadians( circle.labelGap/2 ),
-                          circle.center ),
-          endPoint    = angularOffset(
-                          startPoint,
-                          degreesToRadians( dataDegrees ),
-                          circle.center ),
-          p           = [],
-          path        = canvas.path();
 
-      p = p.concat( [ "M", startPoint.x, startPoint.y ] );
-      p = p.concat( [ "A", circle.radius, circle.radius, 0, 0, 1, endPoint.x, endPoint.y ] ); 
+
+    function drawData( canvas, grid, opts ) {
+      var dataRads = Eskimo.getRadians( opts.data.numerator /
+                                        opts.data.denominator * 
+                                        opts.track.degrees ),
+          largeArc = Math.floor( dataRads / Math.PI ),
+          start    = grid.point( 'dataStart', grid.point( 'trackStart' ).t ),
+          end      = grid.point( 'dataEnd', start.t + dataRads ),
+          p        = [],
+          path     = canvas.path();
+
+      p = p.concat( [ "M", start.x, start.y ] );
+      p = p.concat( [ "A", grid.radius, grid.radius, 0, largeArc, 1, end.x, end.y ] ); 
 
       return path.attr( { 
         'path'         : p,
@@ -116,29 +45,78 @@
       
     }
 
-    function drawTicks( canvas, element, opts ) {
+
+
+    function drawTicks( canvas, opts ) {
+      $.each( opts.ticks, function( index, tick )  {
+        drawTick( canvas, tick, opts );
+      } );
     }
 
-    function drawLabel( canvas, element, opts ) {
-      var labelElement = $( opts.label.html );
+
+    function drawTick( canvas, tick, opts ) {
+      var start      = grid.point( 'trackStart' ),
+          tickRads   = Eskimo.getRadians( tick.value / 
+                                          opts.data.denominator * 
+                                          opts.track.degrees ) + start.t,
+          innerPoint = grid.cartesian( tickRads, grid.radius - opts.track.width ),
+          outerPoint = grid.cartesian( tickRads, grid.radius + opts.track.width ),
+          p          = [],
+          path       = canvas.path();
+
+      p = p.concat( [ "M", innerPoint.x, innerPoint.y ] );
+      p = p.concat( [ "L", outerPoint.x, outerPoint.y ] );
+
+      return path.attr( {
+        'path'   : p,
+        'stroke' : '#FFFFFF',
+        'stroke-width' : Math.max( opts.dimension * 0.00625, 2 )
+      } );
+    }
+
+
+
+    function drawLabel( element, opts ) {
+      var labelHtml    = "<div class='gauge-label'>"+ opts.label.html +"</div>"
+          labelElement = $( labelHtml );
+
       $( element ).css( 'position', 'relative' );
       labelElement.css( {
         'position'   : 'absolute',
-        'top'        : '125px',
-        'left'       : '125px',
-        'text-align' : 'center'
+        'bottom'     : opts.dimension * 0.17,
+        'width'      : '100%',
+        'text-align' : 'center',
+        'font-size'  : opts.dimension * 0.1 + 'px'
       } );
+
+      labelElement.find( '.gauge-value' ).css( {
+        'font-size'      : opts.dimension * 0.45 + 'px',
+        'line-height'    : opts.dimension * 0.4 + 'px',
+        'letter-spacing' : opts.dimension * -0.05 + 'px'
+      } );
+
       $( element ).append( labelElement )
     }
+
+
 
     var options = $.extend( $.fn.gauge.defaults, options );
 
     $.each( this, function( index, element ) {
-      var canvas = R( element );
-      drawTrack( canvas, element, options );
-      drawData(  canvas, element, options );
-      drawTicks( canvas, element, options );
-      drawLabel( canvas, element, options );
+      var canvas     = R( element ),
+          center     = { x : canvas.width/2, y : canvas.height/2 },
+          trackWidth = Math.min( canvas.width, canvas.height ) * 0.09
+          radius     = Math.min( center.x, center.y ) - trackWidth,
+          grid       = new Eskimo( center, radius, Eskimo.getRadians( 270 ), -1 );
+
+      options.track.width = trackWidth;
+      options.data.width  = trackWidth;
+      options.dimension   = Math.min( $( element ).height(), $( element ).width() );
+
+      drawTrack( canvas, grid, options );
+      drawData(  canvas, grid, options );
+      drawTicks( canvas, options );
+      drawLabel( element, options );
     } );
 
     return this;
@@ -146,26 +124,20 @@
 
   $.fn.gauge.defaults = {
     data    : { 
-                numerator   : 33, 
+                numerator   : 80, 
                 denominator : 100,
-                color       : "#EE3524",
-                width       : "30px",
+                color       : "#F37321",
                 animate     : true
               },
     track   : {
                 color       : "#F1E3C5",
-                width       : "30px",
-                degrees     : 270
+                degrees     : 300
               },
     ticks   : [ { label : "60 shirts by Friday", value : 60 },
-                { label : "Goal", value : 100 } ],
+                { label : "Goal", value : 90 } ],
     label   : { 
-                html        : "<div class='gauge-label'><div class='gauge-value'>3</div><div class='gauge-sub-label'>days to go</div></div>",
-              },
-    padding : {
-                horizontal  : 15,
-                vertical    : 15
+                html        : "Day<div class='gauge-value'>30</div>of 14</div>"
               }
   }
 
-}( jQuery, Raphael ) );
+}( jQuery, Raphael, Eskimo ) );
