@@ -55,7 +55,7 @@
   }
 
   Eskimo.prototype.point = function( name, theta, radius ) {
-    if ( theta ) { this.namedPoints[ name ] =  this.cartesian( theta, radius ) }
+    if ( theta ) { this.namedPoints[ name ] = this.cartesian( theta, radius ) }
     return this.namedPoints[ name ];
   }
 

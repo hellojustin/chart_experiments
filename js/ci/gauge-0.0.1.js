@@ -2,120 +2,148 @@
 
   $.fn.gauge = function( options ) {
 
+    function drawTrack( degrees, grid ) {
+      var gap   = Eskimo.getRadians( ( 360 - degrees ) / 2 ),
+          start = grid.point( 'trackStart', gap ),
+          end   = grid.point( 'trackEnd',   gap * -1 );
 
-
-    function drawTrack( canvas, grid, opts ) {
-      var gap      = Eskimo.getRadians( ( 360 - opts.track.degrees ) / 2 );
-          largeArc = Math.floor( gap / Math.PI ),
-          start    = grid.point( 'trackStart', gap ),
-          end      = grid.point( 'trackEnd', gap * -1 ),
-          p        = [],
-          path     = canvas.path();
-
-      p = p.concat( [ "M", start.x, start.y ] );
-      p = p.concat( [ "A", grid.radius, grid.radius, 0, 1, 1, end.x, end.y ] ); 
-
-      return path.attr( { 
-        'path'         : p,
-        'stroke'       : opts.track.color,
-        'stroke-width' : opts.track.width
-      } );
+      return [ start.t, end.t ];
     }
 
-
-
-    function drawData( canvas, grid, opts ) {
-      var dataRads = Eskimo.getRadians( opts.data.numerator /
-                                        opts.data.denominator * 
-                                        opts.track.degrees ),
-          largeArc = Math.floor( dataRads / Math.PI ),
+    function drawData( numerator, denominator, totalDegrees, grid ) {
+      var num      = Math.min( numerator, denominator ),
+          denom    = denominator,
+          dataRads = Eskimo.getRadians( num / denom * totalDegrees ),
           start    = grid.point( 'dataStart', grid.point( 'trackStart' ).t ),
-          end      = grid.point( 'dataEnd', start.t + dataRads ),
-          p        = [],
-          path     = canvas.path();
+          end      = grid.point( 'dataEnd', start.t + dataRads );
 
-      p = p.concat( [ "M", start.x, start.y ] );
-      p = p.concat( [ "A", grid.radius, grid.radius, 0, largeArc, 1, end.x, end.y ] ); 
-
-      return path.attr( { 
-        'path'         : p,
-        'stroke'       : opts.data.color,
-        'stroke-width' : opts.data.width
-      } );
-      
+      return [ start.t, end.t ];
     }
 
-
-
-    function drawTicks( canvas, opts ) {
+    function drawTicks( canvas, grid, opts ) {
       $.each( opts.ticks, function( index, tick )  {
-        drawTick( canvas, tick, opts );
+        var path = canvas.path();
+        drawTick( path, grid, tick, opts );
       } );
     }
 
+    function drawTick( tickValue, trackValue, totalDegrees, length, grid ) {
+      var start    = grid.point( 'trackStart' ),
+          tickRads = Eskimo.getRadians( tickValue / trackValue * 
+                                        totalDegrees ) + start.t;
 
-    function drawTick( canvas, tick, opts ) {
-      var start      = grid.point( 'trackStart' ),
-          tickRads   = Eskimo.getRadians( tick.value / 
-                                          opts.data.denominator * 
-                                          opts.track.degrees ) + start.t,
-          innerPoint = grid.cartesian( tickRads, grid.radius - opts.track.width ),
-          outerPoint = grid.cartesian( tickRads, grid.radius + opts.track.width ),
-          p          = [],
-          path       = canvas.path();
-
-      p = p.concat( [ "M", innerPoint.x, innerPoint.y ] );
-      p = p.concat( [ "L", outerPoint.x, outerPoint.y ] );
-
-      return path.attr( {
-        'path'   : p,
-        'stroke' : '#FFFFFF',
-        'stroke-width' : Math.max( opts.dimension * 0.00625, 2 )
-      } );
+      return [ tickRads, length ];
     }
-
-
 
     function drawLabel( element, opts ) {
-      var labelHtml    = "<div class='gauge-label'>"+ opts.label.html +"</div>"
-          labelElement = $( labelHtml );
+      function updateValue( value, valueEl, timeout ) {
+        var el         = $( valueEl ),
+            currentVal = parseInt( el.html() );
+
+        if ( currentVal < value ) {
+          el.html( currentVal + 1 );
+          setTimeout( function() { updateValue( value, valueEl, timeout ) }, timeout );
+        }
+      }
+
+      var labelHtml    = "<div class='gauge-label'><div class='gauge-value'>0</div>of " + opts.data.denominator + "</div></div>"
+          labelElement = $( labelHtml ),
+          scale        = opts.scale.label;
 
       $( element ).css( 'position', 'relative' );
       labelElement.css( {
-        'position'   : 'absolute',
-        'bottom'     : opts.dimension * 0.17,
-        'width'      : '100%',
-        'text-align' : 'center',
-        'font-size'  : opts.dimension * 0.1 + 'px'
+        'position'       : 'absolute',
+        'bottom'         : opts.dimension * scale.defaultBottom      + 'px',
+        'width'          : '100%',
+        'text-align'     : 'center',
+        'font-size'      : opts.dimension * scale.defaultFontSize    + 'px'
       } );
 
       labelElement.find( '.gauge-value' ).css( {
-        'font-size'      : opts.dimension * 0.45 + 'px',
-        'line-height'    : opts.dimension * 0.4 + 'px',
-        'letter-spacing' : opts.dimension * -0.05 + 'px'
+        'font-size'      : opts.dimension * scale.valueFontSize      + 'px',
+        'line-height'    : opts.dimension * scale.valueLineHeight    + 'px',
+        'letter-spacing' : opts.dimension * scale.valueLetterSpacing + 'px'
       } );
 
       $( element ).append( labelElement )
+      updateValue( opts.data.numerator, labelElement.find( '.gauge-value' ), opts.animation / opts.data.numerator );
     }
-
-
 
     var options = $.extend( $.fn.gauge.defaults, options );
 
     $.each( this, function( index, element ) {
-      var canvas     = R( element ),
-          center     = { x : canvas.width/2, y : canvas.height/2 },
-          trackWidth = Math.min( canvas.width, canvas.height ) * 0.09
-          radius     = Math.min( center.x, center.y ) - trackWidth,
-          grid       = new Eskimo( center, radius, Eskimo.getRadians( 270 ), -1 );
+      var canvas     = R( element );
+      
+      canvas.customAttributes.arc = function( startT, endT ) {
+        var arcFlag = Math.abs( Math.floor( ( endT - startT ) / Math.PI ) ),
+            start   = grid.cartesian( startT ),
+            end     = grid.cartesian( endT ),
+            p       = [];
 
+        p = p.concat( [ "M", start.x, start.y ] );
+        p = p.concat( [ "A", grid.radius, grid.radius, 0, arcFlag, 1, end.x, end.y ] ); 
+
+        return { path : p };
+      }
+
+      canvas.customAttributes.tick = function( theta, length ) {
+        var innerPoint = grid.cartesian( theta, grid.radius - length/2 ),
+            outerPoint = grid.cartesian( theta, grid.radius + length/2 ),
+            p          = [],
+
+        p = p.concat( [ "M", innerPoint.x, innerPoint.y ] );
+        p = p.concat( [ "L", outerPoint.x, outerPoint.y ] );
+
+        return { path : p };
+      }
+
+
+
+
+
+
+
+      var trackWidth = Math.min( canvas.width, canvas.height ) 
+                     * options.scale.track.width;
       options.track.width = trackWidth;
       options.data.width  = trackWidth;
       options.dimension   = Math.min( $( element ).height(), $( element ).width() );
 
-      drawTrack( canvas, grid, options );
-      drawData(  canvas, grid, options );
-      drawTicks( canvas, options );
+
+
+      var center     = { x : canvas.width/2, y : canvas.height/2 },
+          radius     = Math.min( center.x, center.y ) - trackWidth,
+          grid       = new Eskimo( center, radius, Eskimo.getRadians( 270 ), -1 ),
+          trackPath  = canvas.path().attr( { 
+            'arc'          : drawTrack( options.track.degrees, grid ),
+            'stroke'       : options.track.color,
+            'stroke-width' : options.track.width
+          } ),
+          dataPath   = canvas.path().attr( {
+            'arc'          : drawData( 0, options.data.denominator, options.track.degrees, grid ),
+            'stroke'       : options.data.color,
+            'stroke-width' : options.data.width
+          } ),
+          tickPath   = canvas.path().attr( {
+            'tick'         : drawTick( options.ticks[1].value, options.data.denominator, options.track.degrees, options.track.width, grid ),
+            'stroke'       : '#FFFFFF',
+            'stroke-width' : Math.max( options.dimension * options.scale.ticks.strokeWidth, 
+                                       options.scale.ticks.minStrokeWidth )
+          } ),
+          tickAnim   = R.animation( {
+            'tick' : drawTick( options.ticks[1].value, Math.max( options.data.numerator, options.data.denominator ), options.track.degrees, options.track.width, grid )
+          }, options.animation/2, '>' ),
+          dataAnim   = R.animation( { 
+            'arc' : drawData( options.data.numerator, options.data.denominator, options.track.degrees, grid )
+          }, options.animation/2, function() { tickPath.animate( tickAnim ) } );
+
+      
+
+      
+
+      dataPath.animate( dataAnim );
+      
+
       drawLabel( element, options );
     } );
 
@@ -123,20 +151,36 @@
   }
 
   $.fn.gauge.defaults = {
+    animation : 1000,
     data    : { 
                 numerator   : 80, 
-                denominator : 100,
+                denominator : 50,
                 color       : "#F37321",
-                animate     : true
               },
+    label   : { 
+                html        : "<div class='gauge-value'>180</div>of 14</div>"
+              },
+    ticks   : [ { label : "Print", value : 10 },
+                { label : "Goal",  value : 50 } ],
     track   : {
                 color       : "#F1E3C5",
                 degrees     : 300
               },
-    ticks   : [ { label : "60 shirts by Friday", value : 60 },
-                { label : "Goal", value : 90 } ],
-    label   : { 
-                html        : "Day<div class='gauge-value'>30</div>of 14</div>"
+    scale   : {
+                label : {
+                  valueFontSize      : 0.45,
+                  valueLineHeight    : 0.58,
+                  valueLetterSpacing : 0,
+                  defaultFontSize    : 0.1,
+                  defaultBottom      : 0.1
+                },
+                ticks : {
+                  strokeWidth        : 0.00625,
+                  minStrokeWidth     : 2
+                },
+                track : {
+                  width              : 0.09
+                }
               }
   }
 
