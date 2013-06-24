@@ -1,0 +1,5 @@
+.gauge-label {
+  text-transform : uppercase;
+  font-family    : "Lucida Sans Unicode", "Lucida Grande", sans-serif;
+  color          : #f37321;
+}

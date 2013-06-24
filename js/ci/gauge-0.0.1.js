@@ -90,8 +90,6 @@
                                          opts.dataWidth )
         }, animTimeout );
 
-
-
     dataPath.animate( dataAnim );
     dataTip.animate( dataTipAnim );
     dataTipGap.animate( dataTipGapAnim );
