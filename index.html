@@ -12,16 +12,12 @@
 
     <div id="demoContainerA" class="gauge-container">
     </div>
-
     <div id="demoContainerB" class="gauge-container">
     </div>
-
     <div id="demoContainerC" class="gauge-container">
     </div>
-
     <div id="demoContainerD" class="gauge-container">
     </div>
-
     <div id="demoContainerE" class="gauge-container">
     </div>
     
@@ -35,11 +31,12 @@
       $( function() {
 
         var gaugeOpts = {
-          numerator   : 15.3,
-          denominator : 31.6,
-          animate     : true,
-          tickMarks   : [ { position: 20.5, label: "As of today" },
-                          { position: 23.7, label: "Goal by friday" } ]
+          numerator   : 30,
+          denominator : 50,
+          animation   : 2000,
+          degrees     : 359.9999,
+          ticks       : [ { label : "Print", value : 6 },
+                          { label : "Goal",  value : 50 } ],
         }
 
         $( '.gauge-container' ).gauge( gaugeOpts );

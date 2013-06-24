@@ -46,7 +46,7 @@
         }
       }
 
-      var labelHtml    = "<div class='gauge-label'><div class='gauge-value'>0</div>of " + opts.data.denominator + "</div></div>"
+      var labelHtml    = "<div class='gauge-label'><div class='gauge-value'>0</div>of " + opts.denominator + "</div></div>"
           labelElement = $( labelHtml ),
           scale        = opts.scale.label;
 
@@ -66,7 +66,7 @@
       } );
 
       $( element ).append( labelElement )
-      updateValue( opts.data.numerator, labelElement.find( '.gauge-value' ), opts.animation / opts.data.numerator );
+      updateValue( opts.numerator, labelElement.find( '.gauge-value' ), opts.animation / opts.numerator );
     }
 
     var options = $.extend( $.fn.gauge.defaults, options );
@@ -97,53 +97,39 @@
         return { path : p };
       }
 
-
-
-
-
-
-
       var trackWidth = Math.min( canvas.width, canvas.height ) 
                      * options.scale.track.width;
-      options.track.width = trackWidth;
-      options.data.width  = trackWidth;
-      options.dimension   = Math.min( $( element ).height(), $( element ).width() );
-
-
+      options.trackWidth = trackWidth;
+      options.dataWidth  = trackWidth;
+      options.dimension  = Math.min( $( element ).height(), $( element ).width() );
 
       var center     = { x : canvas.width/2, y : canvas.height/2 },
           radius     = Math.min( center.x, center.y ) - trackWidth,
           grid       = new Eskimo( center, radius, Eskimo.getRadians( 270 ), -1 ),
           trackPath  = canvas.path().attr( { 
-            'arc'          : drawTrack( options.track.degrees, grid ),
-            'stroke'       : options.track.color,
-            'stroke-width' : options.track.width
+            'arc'          : drawTrack( options.degrees, grid ),
+            'stroke'       : options.trackColor,
+            'stroke-width' : options.trackWidth
           } ),
           dataPath   = canvas.path().attr( {
-            'arc'          : drawData( 0, options.data.denominator, options.track.degrees, grid ),
-            'stroke'       : options.data.color,
-            'stroke-width' : options.data.width
+            'arc'          : drawData( options.startNumerator, options.denominator, options.degrees, grid ),
+            'stroke'       : options.dataColor,
+            'stroke-width' : options.dataWidth
           } ),
           tickPath   = canvas.path().attr( {
-            'tick'         : drawTick( options.ticks[1].value, options.data.denominator, options.track.degrees, options.track.width, grid ),
+            'tick'         : drawTick( options.ticks[1].value, options.denominator, options.degrees, options.trackWidth, grid ),
             'stroke'       : '#FFFFFF',
             'stroke-width' : Math.max( options.dimension * options.scale.ticks.strokeWidth, 
                                        options.scale.ticks.minStrokeWidth )
           } ),
           tickAnim   = R.animation( {
-            'tick' : drawTick( options.ticks[1].value, Math.max( options.data.numerator, options.data.denominator ), options.track.degrees, options.track.width, grid )
+            'tick' : drawTick( options.ticks[1].value, Math.max( options.numerator, options.denominator ), options.degrees, options.trackWidth, grid )
           }, options.animation/2, '>' ),
           dataAnim   = R.animation( { 
-            'arc' : drawData( options.data.numerator, options.data.denominator, options.track.degrees, grid )
+            'arc' : drawData( options.numerator, options.denominator, options.degrees, grid )
           }, options.animation/2, function() { tickPath.animate( tickAnim ) } );
 
-      
-
-      
-
       dataPath.animate( dataAnim );
-      
-
       drawLabel( element, options );
     } );
 
@@ -151,37 +137,31 @@
   }
 
   $.fn.gauge.defaults = {
-    animation : 1000,
-    data    : { 
-                numerator   : 80, 
-                denominator : 50,
-                color       : "#F37321",
-              },
-    label   : { 
-                html        : "<div class='gauge-value'>180</div>of 14</div>"
-              },
-    ticks   : [ { label : "Print", value : 10 },
-                { label : "Goal",  value : 50 } ],
-    track   : {
-                color       : "#F1E3C5",
-                degrees     : 300
-              },
-    scale   : {
-                label : {
-                  valueFontSize      : 0.45,
-                  valueLineHeight    : 0.58,
-                  valueLetterSpacing : 0,
-                  defaultFontSize    : 0.1,
-                  defaultBottom      : 0.1
-                },
-                ticks : {
-                  strokeWidth        : 0.00625,
-                  minStrokeWidth     : 2
-                },
-                track : {
-                  width              : 0.09
-                }
-              }
+    animation      : 2000,
+    startNumerator : 20, 
+    numerator      : 80,
+    denominator    : 50,
+    dataColor      : "#F37321",
+    trackColor     : "#f5f2f0",
+    degrees        : 359.99999,
+    ticks          : [ { label : "Print", value : 10 },
+                       { label : "Goal",  value : 50 } ],
+    scale          : {
+                       label : {
+                         valueFontSize      : 0.45,
+                         valueLineHeight    : 0.35,
+                         valueLetterSpacing : 0,
+                         defaultFontSize    : 0.1,
+                         defaultBottom      : 0.2
+                       },
+                       ticks : {
+                         strokeWidth        : 0.00625,
+                         minStrokeWidth     : 2
+                       },
+                       track : {
+                         width              : 0.09
+                       }
+                     }
   }
 
 }( jQuery, Raphael, Eskimo ) );
