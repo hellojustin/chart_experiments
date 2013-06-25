@@ -18,15 +18,14 @@
     dataColor      : "#f37321",
     trackColor     : "#f5f2f0",
     bgColor        : "#ffffff",
-    degrees        : 359.99999,
-    ticks          : [ { label : "Print", value : 10 },
-                       { label : "Goal",  value : 50 } ],
+    degrees        : 359.9999,
+    ticks          : [ { label : 'none', value : 0 } ],
     scale          : {
                        dataTip : {
                          size               : 0.4
                        },
                        label : {
-                         valueFontSize      : 0.45,
+                         valueFontSize      : 0.475,
                          valueLineHeight    : 0.45,
                          valueLetterSpacing : 0,
                          defaultFontSize    : 0.1,

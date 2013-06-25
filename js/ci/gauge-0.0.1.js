@@ -14,87 +14,83 @@
     this.grid       = new Eskimo( this.center, this.radius, Eskimo.getRadians( 270 ), -1 );
 
     this.canvas.customAttributes.arc    = this.arcDefinition( this.grid );
-    this.canvas.customAttributes.tick   = this.tickDefinition( this.grid );
     this.canvas.customAttributes.tip    = this.tipDefinition( this.grid, opts );
     this.canvas.customAttributes.tipGap = this.tipGapDefinition( this.grid, opts );
         
-    var animTimeout = ( opts.numerator > opts.denominator ) ? opts.animation/2 : opts.animation,
-        trackPath   = this.canvas.path().attr( { 
-          'arc'          : this.drawTrack( opts.degrees ),
+    var num              = opts.numerator,
+        startNum         = opts.startNumerator,
+        denom            = opts.denominator,
+        degrees          = opts.degrees,
+        animationCycles  = Math.floor( (num - startNum) / denom ),
+        animationCycles  = animationCycles + ( (num % denom) < (startNum % denom) ) ? 1 : 0,
+        cycleTime        = opts.animation / ( num / denom ),
+        lastCyclePct     = ( num % denom ) / denom,
+        lastCycleTime    = ( num > denom ) ? lastCyclePct * cycleTime : opts.animation,
+        animationTimeout = ( num > denom ) ? cycleTime : opts.animation,
+        trackPathInit    = this.drawTrack( opts.degrees ),
+        trackPath        = this.canvas.path().attr( { 
+          'arc'          : trackPathInit,
           'stroke'       : opts.trackColor,
           'stroke-width' : opts.trackWidth
         } ),
 
-        dataPath      = this.canvas.path().attr( {
-          'arc'          : this.drawData( opts.startNumerator, 
-                                          opts.denominator, 
-                                          opts.degrees ),
+        dataPathInit     = this.drawData( Math.min( startNum, denom ), denom, degrees ),
+        dataPathFinal    = this.drawData( Math.min( num, denom ), denom, degrees ),
+        dataPath         = this.canvas.path().attr( {
+          'arc'          : dataPathInit,
           'stroke'       : opts.dataColor,
           'stroke-width' : opts.dataWidth
         } ),
+        dataAnim         = R.animation( { 
+          'arc'          : dataPathFinal
+        }, animationTimeout ),
 
-        dataTip       = this.canvas.path().attr( {
-          'tip'          : this.drawTip( opts.startNumerator,
-                                         opts.denominator,
-                                         opts.degrees,
-                                         opts.dataWidth ),
+        dataTipInit      = this.drawTip( Math.min( startNum, denom ), denom, degrees, opts.dataWidth ),
+        dataTipFinal     = this.drawTip( Math.min( num, denom ), denom, degrees, opts.dataWidth ),
+        dataTip          = this.canvas.path().attr( {
+          'tip'          : dataTipInit,
           'fill'         : opts.dataColor,
           'stroke'       : opts.dataColor,
           'stroke-width' : 1
         } ),
+        dataTipAnim      = R.animation( {
+          'tip'          : dataTipFinal
+        }, animationTimeout ),
 
-        dataTipGap    = this.canvas.path().attr( {
-          'tipGap'       : this.drawTip( opts.startNumerator,
-                                         opts.denominator,
-                                         opts.degrees,
-                                         opts.dataWidth ),
+        dataTipGapInit   = this.drawTip( startNum, denom, degrees, opts.dataWidth ),
+        dataTipGapReset  = this.drawTip( 0, denom, degrees, opts.dataWidth ),
+        dataTipGapInterim= this.drawTip( denom, denom, degrees, opts.dataWidth ),
+        dataTipGapFinal  = this.drawTip( num % denom, denom, degrees, opts.dataWidth ),
+        dataTipGap       = this.canvas.path().attr( {
+          'tipGap'       : dataTipGapInit,
           'stroke'       : opts.bgColor,
           'stroke-width' : Math.max( opts.dimension * opts.scale.ticks.strokeWidth, 
                                      opts.scale.ticks.minStrokeWidth )
         } ),
+        dataTipGapAnimFin= R.animation( {
+          'tipGap'       : dataTipGapFinal
+        }, lastCycleTime ),
+        dataTipGapAnim   = R.animation( {
+          'tipGap'       : dataTipGapInterim
+        }, animationTimeout, function() {
 
-        tickPath      = this.canvas.path().attr( {
-          'tick'         : this.drawTick( opts.ticks[1].value, 
-                                          opts.denominator, 
-                                          opts.degrees, 
-                                          opts.trackWidth ),
-          'stroke'       : opts.bgColor,
-          'stroke-width' : Math.max( opts.dimension * opts.scale.ticks.strokeWidth, 
-                                     opts.scale.ticks.minStrokeWidth )
-        } ),
+          animationCycles -= 1;
+          if ( animationCycles > 0 ) {
+            dataTipGap.attr( { 'tipGap' : dataTipGapReset } );
+            dataTipGap.animate( dataTipGapAnim );
+          } else if ( animationCycles == 0 ) {
+            dataTipGap.attr( { 'tipGap' : dataTipGapReset } );
+            dataTipGap.animate( dataTipGapAnimFin );
+          }
 
-        tickAnim      = R.animation( {
-          'tick'         : this.drawTick( opts.ticks[1].value, 
-                                          Math.max( opts.numerator, opts.denominator ), 
-                                          opts.degrees, 
-                                          opts.trackWidth )
-        }, animTimeout, '>' ),
-
-        dataAnim      = R.animation( { 
-          'arc'          : this.drawData( opts.numerator, 
-                                          opts.denominator, 
-                                          opts.degrees )
-        }, animTimeout, function() { tickPath.animate( tickAnim ) } ),
-
-        dataTipAnim   = R.animation( {
-          'tip'          : this.drawTip( opts.numerator,
-                                         opts.denominator,
-                                         opts.degrees,
-                                         opts.dataWidth )
-        }, animTimeout ),
-
-        dataTipGapAnim = R.animation( {
-          'tipGap'       : this.drawTip( opts.numerator,
-                                         opts.denominator,
-                                         opts.degrees,
-                                         opts.dataWidth )
-        }, animTimeout );
+        } );
 
     dataPath.animate( dataAnim );
     dataTip.animate( dataTipAnim );
-    dataTipGap.animate( dataTipGapAnim );
     this.drawLabel( opts );
-
+    
+    if ( animationCycles > 0 ) { dataTipGap.animate( dataTipGapAnim ) }
+    else                       { dataTipGap.animate( dataTipGapAnimFin ) }
   }
 
   Gauge.prototype.drawTrack = function( degrees ) {
@@ -106,7 +102,7 @@
   }
 
   Gauge.prototype.drawData = function( numerator, denominator, totalDegrees ) {
-    var num      = Math.min( numerator, denominator ),
+    var num      = numerator,
         denom    = denominator,
         dataRads = Eskimo.getRadians( num / denom * totalDegrees ),
         start    = this.grid.point( 'dataStart', this.grid.point( 'trackStart' ).t ),
@@ -116,33 +112,29 @@
   }
 
   Gauge.prototype.drawTip = function( numerator, denominator, totalDegrees, dataWidth ) {
-    var num     = Math.min( numerator, denominator ),
+    var num     = numerator,
         denom   = denominator,
-        tipRads = Eskimo.getRadians( num / denom * totalDegrees );
+        start   = this.grid.point( 'trackStart' ),
+        tipRads = Eskimo.getRadians( num / denom * totalDegrees ) + start.t,
+        tipRads = tipRads % ( Math.PI*2 );
 
     return [ tipRads, dataWidth ];
   }
 
-  Gauge.prototype.drawTick = function( tickValue, trackValue, totalDegrees, length ) {
-    var start    = this.grid.point( 'trackStart' ),
-        tickRads = Eskimo.getRadians( tickValue / trackValue * 
-                                      totalDegrees ) + start.t;
-
-    return [ tickRads, length ];
-  }
-
   Gauge.prototype.drawLabel = function( opts ) {
-    function updateValue( value, valueEl, timeout ) {
-      var el         = $( valueEl ),
-          currentVal = parseInt( el.html() );
-
-      if ( currentVal < value ) {
-        el.html( currentVal + 1 );
-        setTimeout( function() { updateValue( value, valueEl, timeout ) }, timeout );
+    function updateValue( value, valueEl, initialFontSize, timeout ) {
+      var el      = $( valueEl ),
+          nextVal = parseInt( el.html() ) + 1,
+          charAdj = Math.min( 1, 2 / nextVal.toString().length );
+      
+      if ( nextVal <= value ) {
+        el.css( { 'font-size' : initialFontSize * charAdj + 'px' } );
+        el.html( nextVal );
+        setTimeout( function() { updateValue( value, valueEl, initialFontSize, timeout ) }, timeout );
       }
     }
 
-    var labelHtml    = "<div class='gauge-label'><div class='gauge-value'>0</div>of " + opts.denominator + "</div></div>"
+    var labelHtml    = "<div class='gauge-label'><div class='gauge-value'>" + opts.startNumerator + "</div>of " + opts.denominator + "</div></div>"
         labelElement = $( labelHtml ),
         scale        = opts.scale.label;
 
@@ -156,13 +148,15 @@
     } );
 
     labelElement.find( '.gauge-value' ).css( {
-      'font-size'      : opts.dimension * scale.valueFontSize      + 'px',
       'line-height'    : opts.dimension * scale.valueLineHeight    + 'px',
       'letter-spacing' : opts.dimension * scale.valueLetterSpacing + 'px'
     } );
 
     $( this.element ).append( labelElement )
-    updateValue( opts.numerator, labelElement.find( '.gauge-value' ), opts.animation / opts.numerator );
+    updateValue( opts.numerator, 
+                 labelElement.find( '.gauge-value' ), 
+                 opts.dimension * scale.valueFontSize, 
+                 opts.animation / opts.numerator );
   }
 
   /* 
@@ -179,19 +173,6 @@
 
       p = p.concat( [ "M", start.x, start.y ] );
       p = p.concat( [ "A", grid.radius, grid.radius, 0, arcFlag, 1, end.x, end.y ] ); 
-
-      return { path : p };
-    }
-  }
-
-  Gauge.prototype.tickDefinition = function( grid ) {
-    return function( theta, length ) {
-      var innerPoint = grid.cartesian( theta, grid.radius - length/2 ),
-          outerPoint = grid.cartesian( theta, grid.radius + length/2 ),
-          p          = [],
-
-      p = p.concat( [ "M", innerPoint.x, innerPoint.y ] );
-      p = p.concat( [ "L", outerPoint.x, outerPoint.y ] );
 
       return { path : p };
     }
