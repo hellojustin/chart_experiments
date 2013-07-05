@@ -8,82 +8,104 @@
     this.height   = this.canvas.height;
     this.labels   = this.extract( 'key',   opts.data );
     this.values   = this.extract( 'value', opts.data );
-    this.range    = this.maxVal - this.minVal;
-    this.origin   = { x : opts.padding.left, 
-                      y : this.height - opts.padding.bottom };
-    this.topRight = { x : this.width - opts.padding.right,
-                      y : opts.padding.top };
-
-    this.grid     = this.drawGrid( opts.data, 5 );
+    this.gridInfo = this.computeGridInfo( this.values, opts );
+    this.plotInfo = this.computePlotInfo( this.values, this.gridInfo, opts );
+    this.grid     = this.drawGrid( this.gridInfo );
     this.grid.attr( { 
       'fill'   : opts.gridColor,
       'stroke' : opts.gridColor
     } );
 
     this.dataLine = this.canvas.path().attr( {
-      'path'   : this.drawDataLine( this.values ),
+      'path'   : this.drawDataLine( this.values, this.plotInfo ),
       'stroke' : opts.dataColor,
       'stroke-width' : 2
     } );
 
-    this.dataPoints = this.drawDataPoints( this.values );
+    this.dataPoints = this.drawDataPoints( this.values, this.plotInfo );
     this.dataPoints.attr( { 
       'fill'   : opts.dataColor,
       'stroke' : opts.dataColor
     } );
   }
 
-  LineChart.prototype.drawDataPoints = function( values ) {
-    var max    = this.arrayMax( values ),
-        min    = this.arrayMin( values ),
-        range  = max - min,
-        width  = this.topRight.x - this.origin.x,
-        height = this.origin.y - this.topRight.y,
-        xScale = width / ( values.length + 1 ),
-        yScale = height / range,
+  LineChart.prototype.computeGridInfo = function( values, opts ) {
+    var numSpaces   = values.length + 1,
+        origin      = { x : opts.padding.left, 
+                        y : this.height - opts.padding.bottom },
+        topRight    = { x : this.width - opts.padding.right,
+                        y : opts.padding.top }
+        spaceWidth  = ( topRight.x - origin.x ) / numSpaces - opts.gridGap,
+        spaceHeight = ( origin.y - topRight.y );
+
+    return {
+      gap         : opts.gridGap,
+      origin      : origin,
+      topRight    : topRight,
+      numSpaces   : numSpaces,
+      spaceWidth  : spaceWidth,
+      spaceHeight : spaceHeight
+    }
+  }
+
+  LineChart.prototype.computePlotInfo = function( values, gridInfo, opts ) {
+    var max      = this.arrayMax( values ),
+        min      = 0,
+        range    = max - min,
+        origin   = { x : gridInfo.origin.x + (gridInfo.spaceWidth + gridInfo.gap),
+                     y : gridInfo.origin.y - opts.plotPadding.bottom },
+        topRight = { x : gridInfo.topRight.x - (gridInfo.spaceWidth + gridInfo.gap), 
+                     y : gridInfo.topRight.y + opts.plotPadding.top },
+        scale    = { x : ( topRight.x - origin.x ) / (values.length-1),
+                     y : ( origin.y - topRight.y ) / range };
+
+    return {
+      max      : max,
+      min      : min,
+      range    : range,
+      origin   : origin,
+      topRight : topRight,
+      scale    : scale
+    }
+  }
+
+  LineChart.prototype.drawDataPoints = function( values, plotInfo ) {
+    var pi     = plotInfo,
         points = this.canvas.set();
 
     for ( var i = 0; i < values.length; i++ ) {
       points.push( this.canvas.circle( 
-                      this.origin.x + xScale * (i+1), 
-                      this.origin.y - yScale * ( values[i] - min ),
-                      4 ) );
+                   pi.origin.x + pi.scale.x * i, 
+                   pi.origin.y - pi.scale.y * ( values[i] - pi.min ),
+                   4 ) );
     }
 
     return points;
   }
 
-  LineChart.prototype.drawDataLine = function( values ) {
-    var max    = this.arrayMax( values ),
-        min    = this.arrayMin( values ),
-        range  = max - min,
-        width  = this.topRight.x - this.origin.x,
-        height = this.origin.y - this.topRight.y,
-        xScale = width / ( values.length + 1 ),
-        yScale = height / range,
-        p      = [];
+  LineChart.prototype.drawDataLine = function( values, plotInfo ) {
+    var pi = plotInfo,
+        p  = [];
 
     for ( var i = 0; i < values.length; i++ ) {
       p = p.concat( [ ( i == 0 ) ? "M" : "L",
-                      this.origin.x + xScale * (i+1), 
-                      this.origin.y - yScale * ( values[i] - min ) ] );
+                    pi.origin.x + pi.scale.x * i, 
+                    pi.origin.y - pi.scale.y * ( values[i] - pi.min ) ] );
     }
 
     return p;
   }
 
-  LineChart.prototype.drawGrid = function( data, gap ) {
-    var numSpaces   = data.length + 1,
-        spaceWidth  = ( this.topRight.x - this.origin.x ) / numSpaces - gap,
-        spaceHeight = ( this.origin.y - this.topRight.y ),
-        gridRects   = this.canvas.set();
+  LineChart.prototype.drawGrid = function( gridInfo ) {
+    var gi        = gridInfo,
+        gridRects = this.canvas.set();
 
-    for ( var i = 0; i < numSpaces; i++ ) {
+    for ( var i = 0; i < gi.numSpaces; i++ ) {
       gridRects.push( 
-        this.canvas.rect( this.origin.x + gap/2 + ( spaceWidth + gap ) * i,
-                          this.origin.y - spaceHeight,
-                          spaceWidth,
-                          spaceHeight )
+        this.canvas.rect( gi.origin.x + gi.gap/2 + ( gi.spaceWidth + gi.gap ) * i,
+                          gi.origin.y - gi.spaceHeight,
+                          gi.spaceWidth,
+                          gi.spaceHeight )
       );
     }
 
