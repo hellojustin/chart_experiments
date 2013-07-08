@@ -84,7 +84,8 @@
         gi     = this.gridInfo,
         point  = this.canvas.set(),
         pointX = pi.origin.x + pi.scale.x * index,
-        pointY = pi.origin.y - pi.scale.y * ( value - pi.min );
+        pointY = pi.origin.y - pi.scale.y * ( value - pi.min ),
+        labelY = gi.origin.y + this.opts.legendGap,
         hotspotWidth = gi.spaceWidth + gi.gap;
 
     point.push( this.canvas.path().attr( {
@@ -99,18 +100,25 @@
       'fill'   : this.opts.dataColor
     }) );
 
-    point.push( this.canvas.text( pointX, gi.origin.y + this.opts.legendGap, label ).attr( {
-      'stroke' : this.opts.dataColor,
-      'fill'   : this.opts.dataColor,
+    point.push( this.canvas.circle( pointX, labelY, this.opts.legendHeight/2+1 ).attr( {
+      'fill' : '#000000'
+    } ) );
+
+    point.push( this.canvas.text( pointX, labelY, label ).attr( {
+      'stroke' : '#ffffff',//this.opts.dataColor,
+      'fill'   : '#ffffff',//this.opts.dataColor,
       'font-size' : this.opts.legendHeight
     } ) );
 
-    // point.push( this.canvas.rect(
-    //   pointX - hotspotWidth/2, 
-    //   gridInfo.topLeft.y,
-    //   hotspotWidth,
-    //   gridInfo.origin.y - gridInfo.topLeft.y
-    // ) );
+    point.push( this.canvas.rect(
+      pointX - hotspotWidth/2, 
+      gi.topLeft.y,
+      hotspotWidth,
+      gi.origin.y - gi.topLeft.y + this.opts.legendGap + this.opts.legendHeight
+    ).attr( {
+      'stroke' : 'rgba( 0, 0, 0, 0.0 )',
+      'fill'   : 'rgba( 0, 0, 0, 0.0 )'
+    } ) );
 
     return point;
   }
