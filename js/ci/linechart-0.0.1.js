@@ -1,29 +1,40 @@
-( function( $, R ) {
+( function( $, R, eve ) {
 
 	function LineChart( element, opts ) {
 
-    this.element  = element;
-    this.opts     = opts;
-    this.canvas   = R( this.element );
-    this.width    = this.canvas.width;
-    this.height   = this.canvas.height;
-    this.labels   = this.extract( 'key',   opts.data );
-    this.values   = this.extract( 'value', opts.data );
-    this.gridInfo = this.computeGridInfo();
-    this.plotInfo = this.computePlotInfo();
+    this.element        = element;
+    this.opts           = opts;
+    this.canvas         = R( this.element );
+    this.width          = this.canvas.width;
+    this.height         = this.canvas.height;
+    this.labels         = this.extract( 'key',   opts.data );
+    this.values         = this.extract( 'value', opts.data );
+    this.selectedIndex  = opts.selectedIndex || this.values.length-1;
+    this.gridInfo       = this.computeGridInfo();
+    this.plotInfo       = this.computePlotInfo();
 
-    this.grid     = this.drawGrid().attr( { 
+    this.grid = this.drawGrid().attr( { 
       'fill'   : opts.gridColor,
       'stroke' : opts.gridColor
     } );
 
-    this.dataPoints = this.drawDataPoints()
+    this.dataLine   = this.drawDataLine();
+    this.dataPoints = this.drawDataPoints();
+    this.setSelectedIndex( this.selectedIndex );
 
-    this.dataLine = this.canvas.path().attr( {
-      'path'   : this.drawDataLine(),
-      'stroke' : opts.dataColor,
-      'stroke-width' : 2
+    eve.on( 'selectIndex', function() {
+      var callback = opts.onSelect || $.noop;
+      callback( this.valueOf() );
     } );
+  }
+
+  LineChart.prototype.setSelectedIndex = function( index ) {
+    eve( 'selectIndex', index );
+  }
+
+  LineChart.prototype.updateValues = function( values ) {
+    this.values = values;
+    eve( 'redrawValues', values, this.computePlotInfo() );
   }
 
   LineChart.prototype.computeGridInfo = function() {
@@ -42,7 +53,6 @@
       origin      : origin,
       topLeft     : topLeft,
       topRight    : topRight,
-      numSpaces   : numSpaces,
       spaceWidth  : spaceWidth,
       spaceHeight : spaceHeight
     }
@@ -56,9 +66,9 @@
         range    = max - min,
         origin   = { x : gridInfo.origin.x + (gridInfo.spaceWidth + gridInfo.gap),
                      y : gridInfo.origin.y - opts.plotPadding.bottom },
-        topRight = { x : gridInfo.topRight.x - (gridInfo.spaceWidth + gridInfo.gap), 
+        topRight = { x : gridInfo.topRight.x, 
                      y : gridInfo.topRight.y + opts.plotPadding.top },
-        scale    = { x : ( topRight.x - origin.x ) / ( this.values.length-1 ),
+        scale    = { x : ( topRight.x - origin.x ) / this.values.length,
                      y : ( origin.y - topRight.y ) / range };
 
     return {
@@ -80,37 +90,57 @@
   }
 
   LineChart.prototype.drawIndividualDataPoint = function( index, value, label ) {
-    var pi     = this.plotInfo,
-        gi     = this.gridInfo,
-        point  = this.canvas.set(),
-        pointX = pi.origin.x + pi.scale.x * index,
-        pointY = pi.origin.y - pi.scale.y * ( value - pi.min ),
-        labelY = gi.origin.y + this.opts.legendGap,
-        hotspotWidth = gi.spaceWidth + gi.gap;
+    var pi           = this.plotInfo,
+        gi           = this.gridInfo,
+        opts         = this.opts,
+        point        = this.canvas.set(),
+        pointX       = pi.origin.x + pi.scale.x * index,
+        pointY       = pi.origin.y - pi.scale.y * ( value - pi.min ),
+        labelY       = gi.origin.y + opts.legendGap,
+        hotspotWidth = gi.spaceWidth + gi.gap,
+        tickLine     = null,
+        dataCircle   = null,
+        labelCircle  = null,
+        labelText    = null,
+        hotspot      = null;
 
-    point.push( this.canvas.path().attr( {
-      'path'   : [ 'M', pointX, gi.topLeft.y, 
-                   'L', pointX, gi.origin.y + this.opts.legendGap + this.opts.legendHeight ],
-      'stroke' : '#ffffff',
-      'stroke-width' : this.opts.gridGap
-    } ) )
+    tickLine = this.canvas.path().attr( {
+      'path'         : [ 'M', pointX, gi.topLeft.y, 
+                         'L', pointX, gi.origin.y + opts.legendGap ],
+      'stroke'       : opts.bgColor,
+      'stroke-width' : opts.gridGap
+    } ).insertBefore( this.dataLine );
+    point.push( tickLine );
 
-    point.push( this.canvas.circle( pointX, pointY, 4 ).attr({
-      'stroke' : this.opts.dataColor,
-      'fill'   : this.opts.dataColor
-    }) );
+    dataCircle = this.canvas.circle( pointX, pointY, 4 ).attr( {
+      'stroke-width' : 0,
+      'stroke'       : opts.dataColor,
+      'fill'         : opts.dataColor
+    } );
+    point.push( dataCircle );
+    eve.on( 'redrawValues', function( index, dataCircle ) {
+      return function( pi ) {
+        dataCircle.animate( {
+          'cx' : pi.origin.x + pi.scale.x * index,
+          'cy' : pi.origin.y - pi.scale.y * ( this[index] - pi.min )
+        }, opts.animationTimeout );
+      } 
+    }( index, dataCircle ) );
 
-    point.push( this.canvas.circle( pointX, labelY, this.opts.legendHeight/2+1 ).attr( {
-      'fill' : '#000000'
-    } ) );
+    labelCircle = this.canvas.circle( pointX, labelY, this.opts.legendHeight/2+2 ).attr( {
+      'fill'   : 'rgba( 255, 255, 255, 0 )',
+      'stroke' : 'rgba( 255, 255, 255, 0 )'
+    } );
+    point.push( labelCircle );
 
-    point.push( this.canvas.text( pointX, labelY, label ).attr( {
-      'stroke' : '#ffffff',//this.opts.dataColor,
-      'fill'   : '#ffffff',//this.opts.dataColor,
-      'font-size' : this.opts.legendHeight
-    } ) );
+    labelText = this.canvas.text( pointX, labelY, label ).attr( {
+      'stroke'    : opts.dataColor,
+      'fill'      : opts.dataColor,
+      'font-size' : opts.legendHeight
+    } );
+    point.push( labelText );
 
-    point.push( this.canvas.rect(
+    hotspot = this.canvas.rect(
       pointX - hotspotWidth/2, 
       gi.topLeft.y,
       hotspotWidth,
@@ -118,20 +148,84 @@
     ).attr( {
       'stroke' : 'rgba( 0, 0, 0, 0.0 )',
       'fill'   : 'rgba( 0, 0, 0, 0.0 )'
-    } ) );
+    } )
+    point.push( hotspot );
+
+    point.mouseover( function() {
+      eve( 'selectIndex', index );
+    } );
+
+    eve.on( 'selectIndex', function( index, tickLine, dataCircle, labelCircle, labelText ) {
+      return function() {
+        if ( this.valueOf() === index ) {
+          tickLine.attr( { 
+            'stroke' : opts.selectedColor
+          } );
+          dataCircle.attr( {
+            'r'            : 6,
+            'stroke-width' : 3,
+            'stroke'       : opts.bgColor,
+            'fill'         : opts.selectedColor
+          } );
+          labelCircle.attr( {
+            'fill'   : opts.selectedColor,
+            'stroke' : opts.selectedColor
+          } );
+          labelText.attr( {
+            'stroke' : opts.bgColor,
+            'fill'   : opts.bgColor
+          } );
+        } else {
+          tickLine.attr( { 
+            'stroke' : opts.bgColor
+          } );
+          dataCircle.attr( {
+            'r'            : 4,
+            'stroke-width' : 0,
+            'stroke'       : opts.dataColor,
+            'fill'         : opts.dataColor
+          } );
+          labelCircle.attr( {
+            'fill'   : 'rgba( 255, 255, 255, 0 )',
+            'stroke' : 'rgba( 255, 255, 255, 0 )'
+          } );
+          labelText.attr( {
+            'stroke' : opts.dataColor,
+            'fill'   : opts.dataColor
+          } );
+        }
+      } 
+    }( index, tickLine, dataCircle, labelCircle, labelText ) );
 
     return point;
   }
 
   LineChart.prototype.drawDataLine = function() {
-    var pi = this.plotInfo,
-        p  = [];
-    for ( var i = 0; i < this.values.length; i++ ) {
-      p = p.concat( [ ( i == 0 ) ? "M" : "L",
-                    pi.origin.x + pi.scale.x * i, 
-                    pi.origin.y - pi.scale.y * ( this.values[i] - pi.min ) ] );
+    function calculateDataLinePoints( values, pi ) {
+      var p  = [];
+      for ( var i = 0; i < values.length; i++ ) {
+        p = p.concat( [ ( i == 0 ) ? "M" : "L",
+                      pi.origin.x + pi.scale.x * i, 
+                      pi.origin.y - pi.scale.y * ( values[i] - pi.min ) ] );
+      }
+      return p;
     }
-    return p;
+
+    var opts     = this.opts,
+        plotInfo = this.plotInfo,
+        dataLine = this.canvas.path().attr( {
+      'path'         : calculateDataLinePoints( this.values, plotInfo ),
+      'stroke'       : opts.dataColor,
+      'stroke-width' : opts.dataLineWidth
+    } );
+
+    eve.on( 'redrawValues', function( plotInfo ) {
+      dataLine.animate( {
+        'path' : calculateDataLinePoints( this, plotInfo )
+      }, opts.animationTimeout );
+    } );
+
+    return dataLine;
   }
 
   LineChart.prototype.drawGrid = function(s) {
@@ -169,4 +263,4 @@
 
   return LineChart;
 	
-}( jQuery, Raphael ) );
+}( jQuery, Raphael, eve ) );

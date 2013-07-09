@@ -1,20 +1,20 @@
 ( function( $, LineChart ) {
 
   $.fn.lineChart = function( options ) {
-
     var options = $.extend( $.fn.lineChart.defaults, options );
-
-    $.each( this, function( index, element ) {
-      var lineChart = new LineChart( element, options );
-    } );
-
+    this.chart = new LineChart( this[0], options );
+    return this.chart;
   }
 
   $.fn.lineChart.defaults = {
     bgColor     : "#ffffff",
     dataColor   : "#f37321",
     gridColor   : "#f5f2f0",
-    gridGap     : 4,
+    selectedColor : "rgba( 233, 38, 41, 1 )",
+    selectedIndex : 12,
+    dataLineWidth : 4,
+    gridGap     : 2,
+    animationTimeout : 175,
     padding     : { top : 0, right : 0, bottom : 0, left : 0 },
     plotPadding : { top : 10, right : 0, bottom : 10, left : 0 },
     legendHeight : 11,
@@ -48,7 +48,8 @@
                     [ 'F', 102 ],
                     [ 'S', 111 ],
                     [ 'S',  90 ],
-                    [ 'M',  61 ] ]    
+                    [ 'M',  61 ] ],
+    // data : [ [ 'M',  61 ] ]
   }
 
 }( jQuery, LineChart ) );
