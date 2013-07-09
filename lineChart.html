@@ -16,6 +16,8 @@
 
     <button class='old-data'>Old Data</button>
     <button class='new-data'>New Data</button>
+
+    <div class='current-index'></div>
     
     <script src="js/lib/jquery-1.10.1.js"          type="text/javascript"></script>
     <script src="js/lib/raphael-2.1.0.js"          type="text/javascript"></script>
@@ -27,9 +29,9 @@
       $( function() {
 
         var lineChartOpts = {
-          // onSelect : function( index ) {
-          //   alert( 'selected: ' + index );
-          // }
+          onSelect : function( index ) {
+            $( '.current-index').html( index );
+          }
         }
 
         var chart = $( '.line-chart-container' ).lineChart( lineChartOpts );
