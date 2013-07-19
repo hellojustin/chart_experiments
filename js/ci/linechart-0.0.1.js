@@ -111,6 +111,15 @@
       'stroke-width' : opts.gridGap
     } ).insertBefore( this.dataLine );
     point.push( tickLine );
+    eve.on( 'selectIndex', function( index, tickLine ) {
+      return function() {
+        if ( this.valueOf() === index ) {
+          tickLine.attr( { 'stroke' : opts.selectedColor } );
+        } else {
+          tickLine.attr( { 'stroke' : opts.bgColor } );
+        }
+      } 
+    }( index, tickLine ) );
 
     dataCircle = this.canvas.circle( pointX, pointY, 4 ).attr( {
       'stroke-width' : 0,
@@ -126,12 +135,46 @@
         }, opts.animationTimeout, '<' );
       } 
     }( index, dataCircle ) );
+    eve.on( 'selectIndex', function( index, dataCircle ) {
+      return function() {
+        if ( this.valueOf() === index ) {
+          dataCircle.attr( {
+            'r'            : 6,
+            'stroke-width' : 3,
+            'stroke'       : opts.bgColor,
+            'fill'         : opts.selectedColor
+          } );
+        } else {
+          dataCircle.attr( {
+            'r'            : 4,
+            'stroke-width' : 0,
+            'stroke'       : opts.dataColor,
+            'fill'         : opts.dataColor
+          } );
+        }
+      } 
+    }( index, dataCircle ) );
 
     labelCircle = this.canvas.circle( pointX, labelY, this.opts.legendHeight/2+2 ).attr( {
       'fill'   : 'rgba( 255, 255, 255, 0 )',
       'stroke' : 'rgba( 255, 255, 255, 0 )'
     } );
     point.push( labelCircle );
+    eve.on( 'selectIndex', function( index, labelCircle ) {
+      return function() {
+        if ( this.valueOf() === index ) {
+          labelCircle.attr( {
+            'fill'   : opts.selectedColor,
+            'stroke' : opts.selectedColor
+          } );
+        } else {
+          labelCircle.attr( {
+            'fill'   : 'rgba( 255, 255, 255, 0 )',
+            'stroke' : 'rgba( 255, 255, 255, 0 )'
+          } );
+        }
+      } 
+    }( index, labelCircle ) );
 
     labelText = this.canvas.text( pointX, labelY, label ).attr( {
       'stroke'    : opts.dataColor,
@@ -139,6 +182,21 @@
       'font-size' : opts.legendHeight
     } );
     point.push( labelText );
+    eve.on( 'selectIndex', function( index, labelText ) {
+      return function() {
+        if ( this.valueOf() === index ) {
+          labelText.attr( {
+            'stroke' : opts.bgColor,
+            'fill'   : opts.bgColor
+          } );
+        } else {
+          labelText.attr( {
+            'stroke' : opts.dataColor,
+            'fill'   : opts.dataColor
+          } );
+        }
+      } 
+    }( index, labelText ) );
 
     hotspot = this.canvas.rect(
       pointX - hotspotWidth/2, 
@@ -155,47 +213,7 @@
       eve( 'selectIndex', index );
     } );
 
-    eve.on( 'selectIndex', function( index, tickLine, dataCircle, labelCircle, labelText ) {
-      return function() {
-        if ( this.valueOf() === index ) {
-          tickLine.attr( { 
-            'stroke' : opts.selectedColor
-          } );
-          dataCircle.attr( {
-            'r'            : 6,
-            'stroke-width' : 3,
-            'stroke'       : opts.bgColor,
-            'fill'         : opts.selectedColor
-          } );
-          labelCircle.attr( {
-            'fill'   : opts.selectedColor,
-            'stroke' : opts.selectedColor
-          } );
-          labelText.attr( {
-            'stroke' : opts.bgColor,
-            'fill'   : opts.bgColor
-          } );
-        } else {
-          tickLine.attr( { 
-            'stroke' : opts.bgColor
-          } );
-          dataCircle.attr( {
-            'r'            : 4,
-            'stroke-width' : 0,
-            'stroke'       : opts.dataColor,
-            'fill'         : opts.dataColor
-          } );
-          labelCircle.attr( {
-            'fill'   : 'rgba( 255, 255, 255, 0 )',
-            'stroke' : 'rgba( 255, 255, 255, 0 )'
-          } );
-          labelText.attr( {
-            'stroke' : opts.dataColor,
-            'fill'   : opts.dataColor
-          } );
-        }
-      } 
-    }( index, tickLine, dataCircle, labelCircle, labelText ) );
+    
 
     return point;
   }
