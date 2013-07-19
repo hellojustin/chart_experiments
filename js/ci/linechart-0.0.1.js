@@ -123,7 +123,7 @@
         dataCircle.animate( {
           'cx' : pi.origin.x + pi.scale.x * index,
           'cy' : pi.origin.y - pi.scale.y * ( this[index] - pi.min )
-        }, opts.animationTimeout );
+        }, opts.animationTimeout, '<' );
       } 
     }( index, dataCircle ) );
 
@@ -222,7 +222,7 @@
     eve.on( 'redrawValues', function( plotInfo ) {
       dataLine.animate( {
         'path' : calculateDataLinePoints( this, plotInfo )
-      }, opts.animationTimeout );
+      }, opts.animationTimeout, '<' );
     } );
 
     return dataLine;
