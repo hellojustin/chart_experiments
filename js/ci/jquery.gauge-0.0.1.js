@@ -11,6 +11,7 @@
   }
 
   $.fn.gauge.defaults = {
+    animateOnCreate: true,
     animation      : 2000,
     startNumerator : 0, 
     numerator      : 30,
@@ -25,10 +26,11 @@
                          size               : 0.4
                        },
                        label : {
-                         valueFontSize      : 0.475,
-                         valueLineHeight    : 0.45,
+                         valueFontSize      : 0.42,
+                         valueLineHeight    : 0.41,
                          valueLetterSpacing : 0,
-                         defaultFontSize    : 0.1,
+                         defaultLineHeight  : 0.08,
+                         defaultFontSize    : 0.08,
                          defaultBottom      : 0.2
                        },
                        ticks : {

@@ -4,96 +4,40 @@
 
     this.element    = element;
     this.canvas     = R( this.element );
-
-    opts.dimension  = Math.min( this.canvas.width, this.canvas.height );
-    opts.trackWidth = opts.dimension * opts.scale.track.width;
-    opts.dataWidth  = opts.trackWidth;
-
+    this.opts       = $.extend( opts, this.supplementalOpts( this.canvas, opts ) );
     this.center     = { x : this.canvas.width/2, y : this.canvas.height/2 };
     this.radius     = Math.min( this.center.x, this.center.y ) - opts.trackWidth;
     this.grid       = new Eskimo( this.center, this.radius, Eskimo.getRadians( 270 ), -1 );
+    this.num        = this.opts.numerator;
+    this.startNum   = ( this.opts.animateOnCreate ) ? this.opts.startNumerator : this.num;
+    this.denom      = this.opts.denominator;
+    this.degrees    = this.opts.degrees;
 
     this.canvas.customAttributes.arc    = this.arcDefinition( this.grid );
     this.canvas.customAttributes.tip    = this.tipDefinition( this.grid, opts );
     this.canvas.customAttributes.tipGap = this.tipGapDefinition( this.grid, opts );
-        
-    var num              = opts.numerator,
-        startNum         = opts.startNumerator,
-        denom            = opts.denominator,
-        degrees          = opts.degrees,
-        animationCycles  = Math.floor( (num - startNum) / denom ),
-        animationCycles  = animationCycles + ( (num % denom) < (startNum % denom) ) ? 1 : 0,
-        cycleTime        = opts.animation / ( num / denom ),
-        lastCyclePct     = ( num % denom ) / denom,
-        lastCycleTime    = ( num > denom ) ? lastCyclePct * cycleTime : opts.animation,
-        animationTimeout = ( num > denom ) ? cycleTime : opts.animation,
-        trackPathInit    = this.drawTrack( opts.degrees ),
-        trackPath        = this.canvas.path().attr( { 
-          'arc'          : trackPathInit,
-          'stroke'       : opts.trackColor,
-          'stroke-width' : opts.trackWidth
-        } ),
-
-        dataPathInit     = this.drawData( Math.min( startNum, denom ), denom, degrees ),
-        dataPathFinal    = this.drawData( Math.min( num, denom ), denom, degrees ),
-        dataPath         = this.canvas.path().attr( {
-          'arc'          : dataPathInit,
-          'stroke'       : opts.dataColor,
-          'stroke-width' : opts.dataWidth
-        } ),
-        dataAnim         = R.animation( { 
-          'arc'          : dataPathFinal
-        }, animationTimeout ),
-
-        dataTipInit      = this.drawTip( Math.min( startNum, denom ), denom, degrees, opts.dataWidth ),
-        dataTipFinal     = this.drawTip( Math.min( num, denom ), denom, degrees, opts.dataWidth ),
-        dataTip          = this.canvas.path().attr( {
-          'tip'          : dataTipInit,
-          'fill'         : opts.dataColor,
-          'stroke'       : opts.dataColor,
-          'stroke-width' : 1
-        } ),
-        dataTipAnim      = R.animation( {
-          'tip'          : dataTipFinal
-        }, animationTimeout ),
-
-        dataTipGapInit   = this.drawTip( startNum, denom, degrees, opts.dataWidth ),
-        dataTipGapReset  = this.drawTip( 0, denom, degrees, opts.dataWidth ),
-        dataTipGapInterim= this.drawTip( denom, denom, degrees, opts.dataWidth ),
-        dataTipGapFinal  = this.drawTip( num % denom, denom, degrees, opts.dataWidth ),
-        dataTipGap       = this.canvas.path().attr( {
-          'tipGap'       : dataTipGapInit,
-          'stroke'       : opts.bgColor,
-          'stroke-width' : Math.max( opts.dimension * opts.scale.ticks.strokeWidth, 
-                                     opts.scale.ticks.minStrokeWidth )
-        } ),
-        dataTipGapAnimFin= R.animation( {
-          'tipGap'       : dataTipGapFinal
-        }, lastCycleTime ),
-        dataTipGapAnim   = R.animation( {
-          'tipGap'       : dataTipGapInterim
-        }, animationTimeout, function() {
-
-          animationCycles -= 1;
-          if ( animationCycles > 0 ) {
-            dataTipGap.attr( { 'tipGap' : dataTipGapReset } );
-            dataTipGap.animate( dataTipGapAnim );
-          } else if ( animationCycles == 0 ) {
-            dataTipGap.attr( { 'tipGap' : dataTipGapReset } );
-            dataTipGap.animate( dataTipGapAnimFin );
-          }
-
-        } );
-
-    dataPath.animate( dataAnim );
-    dataTip.animate( dataTipAnim );
-    this.drawLabel( opts );
     
-    if ( animationCycles > 0 ) { dataTipGap.animate( dataTipGapAnim ) }
-    else                       { dataTipGap.animate( dataTipGapAnimFin ) }
+    this.trackPath  = this.drawTrack();
+    this.dataPath   = this.drawData();
+    this.dataTip    = this.drawDataTip();
+    this.drawLabel();
+
+    if ( this.opts.animateOnCreate ) { this.animate(); }
   }
 
-  Gauge.prototype.drawTrack = function( degrees ) {
+  Gauge.prototype.animate = function() {
+    eve( 'ci:gauge:animate', this, this.num );
+  }
+
+  Gauge.prototype.drawTrack = function() {
+    return this.canvas.path().attr( { 
+      'arc'          : this.trackArc( this.opts.degrees ),
+      'stroke'       : this.opts.trackColor,
+      'stroke-width' : this.opts.trackWidth
+    } )
+  }
+
+  Gauge.prototype.trackArc = function( degrees ) {
     var gap   = Eskimo.getRadians( ( 360 - degrees ) / 2 ),
         start = this.grid.point( 'trackStart', gap ),
         end   = this.grid.point( 'trackEnd',   gap * -1 );
@@ -101,7 +45,27 @@
     return [ start.t, end.t ];
   }
 
-  Gauge.prototype.drawData = function( numerator, denominator, totalDegrees ) {
+  Gauge.prototype.drawData = function() {
+    var opts = this.opts,
+        data = null;
+
+    data = this.canvas.path().attr( {
+      'arc'          : this.dataArc( Math.min( this.startNum, this.denom ), this.denom, this.degrees ),
+      'stroke'       : this.opts.dataColor,
+      'stroke-width' : this.opts.dataWidth
+    } );
+    eve.on( 'ci:gauge:animate', function( numerator ) {
+      var destinationNumerator = Math.min( numerator, this.denom ),
+          timeout              = destinationNumerator * this.opts.animation / numerator;
+      data.animate( {
+        'arc' : this.dataArc( destinationNumerator, this.denom, this.degrees )
+      }, timeout );
+    } );
+
+    return data;
+  }
+
+  Gauge.prototype.dataArc = function( numerator, denominator, totalDegrees ) {
     var num      = numerator,
         denom    = denominator,
         dataRads = Eskimo.getRadians( num / denom * totalDegrees ),
@@ -111,7 +75,39 @@
     return [ start.t, end.t ];
   }
 
-  Gauge.prototype.drawTip = function( numerator, denominator, totalDegrees, dataWidth ) {
+  Gauge.prototype.drawDataTip = function() {
+    var tipSet = this.canvas.set(),
+        tip    = null,
+        tipGap = null,
+        pos    = this.dataTipPos( this.startNum, this.denom, this.degrees, this.opts.dataWidth );
+
+    tip = this.canvas.path().attr( {
+      'tip'          : pos,
+      'fill'         : this.opts.dataColor,
+      'stroke'       : this.opts.dataColor,
+      'stroke-width' : 1
+    } );
+    tipSet.push( tip );
+
+    tipGap = this.canvas.path().attr( {
+      'tipGap'       : pos,
+      'stroke'       : this.opts.bgColor,
+      'stroke-width' : Math.max( this.opts.dimension * this.opts.scale.ticks.strokeWidth, 
+                                 this.opts.scale.ticks.minStrokeWidth )
+    } );
+    tipSet.push( tipGap );
+
+    eve.on( 'ci:gauge:animate', function( numerator ) {
+      var destinationDegrees = numerator * this.degrees / this.denom;
+      tipSet.animate( {
+        'transform' : ['r', destinationDegrees, this.center.x, this.center.y]
+      }, this.opts.animation );
+    } );
+
+    return tipSet;
+  }
+
+  Gauge.prototype.dataTipPos = function( numerator, denominator, totalDegrees, dataWidth ) {
     var num     = numerator,
         denom   = denominator,
         start   = this.grid.point( 'trackStart' ),
@@ -121,7 +117,7 @@
     return [ tipRads, dataWidth ];
   }
 
-  Gauge.prototype.drawLabel = function( opts ) {
+  Gauge.prototype.drawLabel = function() {
     function updateValue( value, valueEl, initialFontSize, timeout ) {
       var el      = $( valueEl ),
           nextVal = parseInt( el.html() ) + 1,
@@ -134,9 +130,12 @@
       }
     }
 
-    var labelHtml    = "<div class='gauge-label'><div class='gauge-value'>" + opts.startNumerator + "</div>of " + opts.denominator + "</div></div>"
+    var opts         = this.opts;
+        labelHtml    = "<div class='gauge-label'><div class='gauge-value'>" + this.startNum + "</div>of " + opts.denominator + "</br>sold</div></div>"
         labelElement = $( labelHtml ),
-        scale        = opts.scale.label;
+        scale        = opts.scale.label,
+        valueFontSize= opts.dimension * scale.valueFontSize,
+        charAdj      = Math.min( 1, 2 / this.num.toString().length );
 
     $( this.element ).css( 'position', 'relative' );
     labelElement.css( {
@@ -144,19 +143,35 @@
       'bottom'         : opts.dimension * scale.defaultBottom      + 'px',
       'width'          : '100%',
       'text-align'     : 'center',
-      'font-size'      : opts.dimension * scale.defaultFontSize    + 'px'
+      'font-size'      : opts.dimension * scale.defaultFontSize    + 'px',
+      'line-height'    : opts.dimension * scale.defaultLineHeight  + 'px'
     } );
 
     labelElement.find( '.gauge-value' ).css( {
+      'font-size'      : valueFontSize  * charAdj                  + 'px',
       'line-height'    : opts.dimension * scale.valueLineHeight    + 'px',
       'letter-spacing' : opts.dimension * scale.valueLetterSpacing + 'px'
     } );
 
     $( this.element ).append( labelElement )
-    updateValue( opts.numerator, 
-                 labelElement.find( '.gauge-value' ), 
-                 opts.dimension * scale.valueFontSize, 
-                 opts.animation / opts.numerator );
+
+    eve.on( 'ci:gauge:animate', function( numerator ) {
+      updateValue( numerator, 
+                   labelElement.find( '.gauge-value' ), 
+                   valueFontSize, 
+                   this.opts.animation / numerator );
+    } );
+  }
+
+  Gauge.prototype.supplementalOpts = function( canvas, opts ) {
+    var dimension  = Math.min( canvas.width, canvas.height ),
+        trackWidth = dimension * opts.scale.track.width;
+
+    return {
+      dimension  : dimension,
+      trackWidth : trackWidth,
+      dataWidth  : trackWidth
+    }
   }
 
   /* 

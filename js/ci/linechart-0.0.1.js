@@ -3,8 +3,8 @@
 	function LineChart( element, opts ) {
 
     this.element        = element;
-    this.opts           = opts;
     this.canvas         = R( this.element );
+    this.opts           = opts;
     this.width          = this.canvas.width;
     this.height         = this.canvas.height;
     this.labels         = this.extract( 'key',   opts.data );

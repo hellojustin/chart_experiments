@@ -10,15 +10,8 @@
   <body>
     <h2>Fulcrum Gauge Demo</h2>
 
-    <div id="demoContainerA" class="gauge-container">
-    </div>
-    <div id="demoContainerB" class="gauge-container">
-    </div>
-    <div id="demoContainerC" class="gauge-container">
-    </div>
+    
     <div id="demoContainerD" class="gauge-container">
-    </div>
-    <div id="demoContainerE" class="gauge-container">
     </div>
     
     <script src="js/lib/jquery-1.10.1.js"     type="text/javascript"></script>
@@ -32,10 +25,11 @@
       $( function() {
 
         var gaugeOpts = {
-          startNumerator : 0,
-          numerator   : 60,
-          denominator : 30,
-          animation   : 1000
+          startNumerator   : 0,
+          numerator        : 40,
+          denominator      : 30,
+          animateOnCreate  : true,
+          animation        : 1000
         }
 
         $( '.gauge-container' ).gauge( gaugeOpts );
