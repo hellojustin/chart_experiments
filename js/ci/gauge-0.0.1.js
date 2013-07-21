@@ -2,24 +2,24 @@
 
   function Gauge( element, opts ) {
 
-    this.element    = element;
-    this.canvas     = R( this.element );
-    this.opts       = $.extend( opts, this.supplementalOpts( this.canvas, opts ) );
-    this.center     = { x : this.canvas.width/2, y : this.canvas.height/2 };
-    this.radius     = Math.min( this.center.x, this.center.y ) - opts.trackWidth;
-    this.grid       = new Eskimo( this.center, this.radius, Eskimo.getRadians( 270 ), -1 );
-    this.num        = this.opts.numerator;
-    this.startNum   = ( this.opts.animateOnCreate ) ? this.opts.startNumerator : this.num;
-    this.denom      = this.opts.denominator;
-    this.degrees    = this.opts.degrees;
+    this.element   = element;
+    this.canvas    = R( this.element );
+    this.opts      = $.extend( opts, this.supplementalOpts( this.canvas, opts ) );
+    this.center    = { x : this.canvas.width/2, y : this.canvas.height/2 };
+    this.radius    = Math.min( this.center.x, this.center.y ) - opts.trackWidth;
+    this.grid      = new Eskimo( this.center, this.radius, Eskimo.getRadians( 270 ), -1 );
+    this.num       = this.opts.numerator;
+    this.startNum  = ( this.opts.animateOnCreate ) ? this.opts.startNumerator : this.num;
+    this.denom     = this.opts.denominator;
+    this.degrees   = this.opts.degrees;
 
     this.canvas.customAttributes.arc    = this.arcDefinition( this.grid );
     this.canvas.customAttributes.tip    = this.tipDefinition( this.grid, opts );
     this.canvas.customAttributes.tipGap = this.tipGapDefinition( this.grid, opts );
     
-    this.trackPath  = this.drawTrack();
-    this.dataPath   = this.drawData();
-    this.dataTip    = this.drawDataTip();
+    this.trackPath = this.drawTrack();
+    this.dataPath  = this.drawData();
+    this.dataTip   = this.drawDataTip();
     this.drawLabel();
 
     if ( this.opts.animateOnCreate ) { this.animate(); }
@@ -55,10 +55,12 @@
       'stroke-width' : this.opts.dataWidth
     } );
     eve.on( 'ci:gauge:animate', function( numerator ) {
-      var destinationNumerator = Math.min( numerator, this.denom ),
-          timeout              = destinationNumerator * this.opts.animation / numerator;
+      var stopNumerator      = Math.min( numerator, this.denom ),
+          stopNumetatorDelta = stopNumerator - this.startNum,
+          fullNumeratorDelta = numerator - this.startNum,
+          timeout            = stopNumetatorDelta * this.opts.animation / fullNumeratorDelta;
       data.animate( {
-        'arc' : this.dataArc( destinationNumerator, this.denom, this.degrees )
+        'arc' : this.dataArc( stopNumerator, this.denom, this.degrees )
       }, timeout );
     } );
 
@@ -98,7 +100,7 @@
     tipSet.push( tipGap );
 
     eve.on( 'ci:gauge:animate', function( numerator ) {
-      var destinationDegrees = numerator * this.degrees / this.denom;
+      var destinationDegrees = ( numerator - this.startNum ) * this.degrees / this.denom;
       tipSet.animate( {
         'transform' : ['r', destinationDegrees, this.center.x, this.center.y]
       }, this.opts.animation );
