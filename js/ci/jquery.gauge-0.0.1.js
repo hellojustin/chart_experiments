@@ -1,17 +1,12 @@
 ( function( $, Gauge ) {
 
   $.fn.gauge = function( options ) {
-
     var options = $.extend( $.fn.gauge.defaults, options );
-
-    $.each( this, function( index, element ) {
-      var gauge = new Gauge( element, options );
-    } );
-
+    return new Gauge( this[0], options );
   }
 
   $.fn.gauge.defaults = {
-    animateOnCreate: true,
+    animate        : 'now',
     animation      : 2000,
     startNumerator : 0, 
     numerator      : 30,

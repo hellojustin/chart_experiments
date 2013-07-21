@@ -9,7 +9,7 @@
     this.radius    = Math.min( this.center.x, this.center.y ) - opts.trackWidth;
     this.grid      = new Eskimo( this.center, this.radius, Eskimo.getRadians( 270 ), -1 );
     this.num       = this.opts.numerator;
-    this.startNum  = ( this.opts.animateOnCreate ) ? this.opts.startNumerator : this.num;
+    this.startNum  = ( this.opts.animate === 'never' ) ? this.num : this.opts.startNumerator;
     this.denom     = this.opts.denominator;
     this.degrees   = this.opts.degrees;
 
@@ -22,7 +22,7 @@
     this.dataTip   = this.drawDataTip();
     this.drawLabel();
 
-    if ( this.opts.animateOnCreate ) { this.animate(); }
+    if ( this.opts.animate === 'now' ) { this.animate(); }
   }
 
   Gauge.prototype.animate = function() {
