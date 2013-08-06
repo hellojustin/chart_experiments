@@ -2,25 +2,34 @@
 
 	function LineChart( element, opts ) {
 
-    this.element        = element;
-    this.canvas         = R( this.element );
-    this.opts           = opts;
-    this.width          = this.canvas.width;
-    this.height         = this.canvas.height;
-    this.labels         = opts.labels;
-    this.values         = opts.values;
-    this.metadata       = opts.metadata;
-    this.selectedIndex  = opts.selectedIndex || this.values.length-1;
-    this.gridInfo       = this.computeGridInfo();
-    this.plotInfo       = this.computePlotInfo();
+    this.element       = element;
+    this.opts          = opts;
+    this.labels        = opts.labels;
+    this.values        = opts.values;
+    this.metadata      = opts.metadata;
+    this.selectedIndex = opts.selectedIndex || this.values.length-1;
+
+    this.sizeAndDraw();
+
+  }
+
+  LineChart.prototype.sizeAndDraw = function() {
+    var opts = this.opts;
+
+    this.canvas   = R( this.element );
+    this.width    = this.canvas.width;
+    this.height   = this.canvas.height;
+    this.gridInfo = this.computeGridInfo();
+    this.plotInfo = this.computePlotInfo();
 
     this.grid = this.drawGrid().attr( { 
-      'fill'   : opts.gridColor,
-      'stroke' : opts.gridColor
+      'fill'   : this.opts.gridColor,
+      'stroke' : this.opts.gridColor
     } );
 
     this.dataLine   = this.drawDataLine();
     this.dataPoints = this.drawDataPoints();
+
     this.setSelectedIndex( this.selectedIndex );
 
     eve.on( 'selectIndex', function( value, label, metadata ) {
@@ -28,6 +37,13 @@
           index    = this.valueOf();
       callback( index, value, label, metadata );
     } );
+  }
+
+  LineChart.prototype.resize = function() {
+    eve.off();
+    this.canvas.clear();
+    this.canvas = null;
+    this.sizeAndDraw();
   }
 
   LineChart.prototype.setSelectedIndex = function( index ) {
@@ -123,8 +139,8 @@
       } 
     }( index, tickLine ) );
 
-    dataCircle = this.canvas.circle( pointX, pointY, 4 ).attr( {
-      'stroke-width' : 0,
+    dataCircle = this.canvas.circle( pointX, pointY, opts.dataCircle.radius ).attr( {
+      'stroke-width' : opts.dataCircle.strokeWidth,
       'stroke'       : opts.dataColor,
       'fill'         : opts.dataColor
     } );
@@ -140,16 +156,17 @@
     eve.on( 'selectIndex', function( index, dataCircle ) {
       return function() {
         if ( this.valueOf() === index ) {
+          dataCircle.toFront();
           dataCircle.attr( {
-            'r'            : 6,
-            'stroke-width' : 3,
+            'r'            : opts.dataCircle.selectedRadius,
+            'stroke-width' : opts.dataCircle.selectedStrokeWidth,
             'stroke'       : opts.bgColor,
             'fill'         : opts.selectedColor
           } );
         } else {
           dataCircle.attr( {
-            'r'            : 4,
-            'stroke-width' : 0,
+            'r'            : opts.dataCircle.radius,
+            'stroke-width' : opts.dataCircle.strokeWidth,
             'stroke'       : opts.dataColor,
             'fill'         : opts.dataColor
           } );
@@ -165,6 +182,7 @@
     eve.on( 'selectIndex', function( index, labelCircle ) {
       return function() {
         if ( this.valueOf() === index ) {
+          labelCircle.toFront();
           labelCircle.attr( {
             'fill'   : opts.selectedColor,
             'stroke' : opts.selectedColor
@@ -187,6 +205,7 @@
     eve.on( 'selectIndex', function( index, labelText ) {
       return function() {
         if ( this.valueOf() === index ) {
+          labelText.toFront();
           labelText.attr( {
             'stroke' : opts.bgColor,
             'fill'   : opts.bgColor
@@ -216,8 +235,6 @@
         lineChart.setSelectedIndex( index );
       }
     }( this ) );
-
-    
 
     return point;
   }
