@@ -10,6 +10,7 @@
     bgColor     : "#ffffff",
     dataColor   : "#f37321",
     gridColor   : "#f5f2f0",
+    labelColor  : "#54301a",
     selectedColor : "rgba( 233, 38, 41, 1 )",
     selectedIndex : 12,
     dataLineWidth : 4,

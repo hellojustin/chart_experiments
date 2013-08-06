@@ -179,8 +179,8 @@
     }( index, labelCircle ) );
 
     labelText = this.canvas.text( pointX, labelY, label ).attr( {
-      'stroke'    : opts.dataColor,
-      'fill'      : opts.dataColor,
+      'stroke'    : opts.labelColor,
+      'fill'      : opts.labelColor,
       'font-size' : opts.legendHeight
     } );
     point.push( labelText );
@@ -193,8 +193,8 @@
           } );
         } else {
           labelText.attr( {
-            'stroke' : opts.dataColor,
-            'fill'   : opts.dataColor
+            'stroke' : opts.labelColor,
+            'fill'   : opts.labelColor
           } );
         }
       } 
