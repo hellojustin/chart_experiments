@@ -7,8 +7,9 @@
     this.opts           = opts;
     this.width          = this.canvas.width;
     this.height         = this.canvas.height;
-    this.labels         = this.extract( 'key',   opts.data );
-    this.values         = this.extract( 'value', opts.data );
+    this.labels         = opts.labels;
+    this.values         = opts.values;
+    this.metadata       = opts.metadata;
     this.selectedIndex  = opts.selectedIndex || this.values.length-1;
     this.gridInfo       = this.computeGridInfo();
     this.plotInfo       = this.computePlotInfo();
@@ -22,14 +23,15 @@
     this.dataPoints = this.drawDataPoints();
     this.setSelectedIndex( this.selectedIndex );
 
-    eve.on( 'selectIndex', function() {
-      var callback = opts.onSelect || $.noop;
-      callback( this.valueOf() );
+    eve.on( 'selectIndex', function( value, label, metadata ) {
+      var callback = opts.onSelect || $.noop,
+          index    = this.valueOf();
+      callback( index, value, label, metadata );
     } );
   }
 
   LineChart.prototype.setSelectedIndex = function( index ) {
-    eve( 'selectIndex', index );
+    eve( 'selectIndex', index, this.values[ index ], this.labels[ index ], this.metadata[ index ] );
   }
 
   LineChart.prototype.updateValues = function( values ) {
@@ -209,9 +211,11 @@
     } )
     point.push( hotspot );
 
-    point.mouseover( function() {
-      eve( 'selectIndex', index );
-    } );
+    point.mouseover( function( lineChart ) {
+      return function() {
+        lineChart.setSelectedIndex( index );
+      }
+    }( this ) );
 
     
 
@@ -232,9 +236,10 @@
     var opts     = this.opts,
         plotInfo = this.plotInfo,
         dataLine = this.canvas.path().attr( {
-      'path'         : calculateDataLinePoints( this.values, plotInfo ),
-      'stroke'       : opts.dataColor,
-      'stroke-width' : opts.dataLineWidth
+      'path'            : calculateDataLinePoints( this.values, plotInfo ),
+      'stroke'          : opts.dataColor,
+      'stroke-width'    : opts.dataLineWidth,
+      'stroke-linejoin' : 'round'
     } );
 
     eve.on( 'redrawValues', function( plotInfo ) {
@@ -252,13 +257,6 @@
                              gi.topLeft.y,
                              gi.topRight.x - gi.topLeft.x,
                              gi.origin.y - gi.topLeft.y );
-  }
-
-  LineChart.prototype.extract = function( part, fromData ) {
-    var pointIndex = ( part === 'key' ) ? 0 : 1;
-    return $.map( fromData, function( point, index ) {
-      return point[ pointIndex ];
-    } );
   }
 
   LineChart.prototype.arrayMax = function( array ) {
